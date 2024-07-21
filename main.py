@@ -1,5 +1,6 @@
 import cv2
 cap = cv2.VideoCapture('chlamy.avi')
+
 if not cap.isOpened():
     print('Cannot open camera')
 
@@ -11,20 +12,22 @@ def init(frame):
     return trac,box
 
 ret, frame=cap.read()
-
+frame=cv2.resize(frame,(640,480))
 if not ret:
     print('Cannot read image')
 
 trac,box=init(frame)
 
 while True:
-    ret, frame=cap.read()
+    ret,frame=cap.read()
     if not ret:
         print('Cannot read image')
         break
+    frame=cv2.resize(frame,(640,480))
     suc,box=trac.update(frame)
     if suc:
-        x,y,w,h=int(box[0]),int(box[1]),int(box[2]),int(box[3])
+        x,y,w,h=[int(i) for i in box]
+        print(x,y,w,h)
         cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2,1)
     else:
         cv2.putText(frame,'R',(100,80),cv2.FONT_HERSHEY_PLAIN,0.75,(0,0,255),2)
