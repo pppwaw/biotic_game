@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def detect_circular_contours(image, prev_contours=None):
+def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 1)
 
@@ -13,7 +13,10 @@ def detect_circular_contours(image, prev_contours=None):
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return contours
 
+def detect_circular_contours(image, prev_contours=None):
+    contours = detect_init(image)
     valid_contours = []
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -35,6 +38,7 @@ def detect_circular_contours(image, prev_contours=None):
         valid_contours = final_contours if final_contours else valid_contours
 
     for contour in valid_contours:
+
         cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
 
     return image, valid_contours
@@ -45,6 +49,16 @@ def init(frame):
     trac = cv2.TrackerCSRT_create()
     trac.init(frame, box)
     return trac, box
+
+def key_action():
+    key = cv2.waitKey(1) & 0xff
+    if key == 27:
+        return True
+    elif key == ord('r'):
+        trac, box = init(frame)
+    return False
+def find(frame):
+    return
 
 cap = cv2.VideoCapture('chlamy.avi')
 if not cap.isOpened():
@@ -74,12 +88,9 @@ while True:
         cv2.putText(frame, 'R', (100,80), cv2.FONT_HERSHEY_PLAIN, 0.75, (0,0,255), 2)
 
     cv2.imshow('frame', frame)
-
-    key = cv2.waitKey(1) & 0xff
-    if key == 27:
+    if key_action():
         break
-    elif key == ord('r'):
-        trac, box = init(frame)
+
 
 cv2.waitKey(0)
 cap.release()

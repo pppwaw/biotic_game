@@ -1,2 +1,3 @@
-opencv-python
-pygame
+opencv-python~=4.10.0.84
+pygame~=2.6.0
+numpy~=1.26.4
