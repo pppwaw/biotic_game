@@ -20,6 +20,9 @@ class Box:
         color = (0, 0, 255)
         pygame.draw.rect(screen, color, (self.x, self.y, self.w, self.h), 2)
 
+    def colliderect(self, rect):
+        return pygame.Rect(self.x, self.y, self.w, self.h).colliderect(rect)
+
 
 class CV:
     def __init__(self, input_, width, height):

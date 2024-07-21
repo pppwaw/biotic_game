@@ -8,7 +8,7 @@ from track import Track
 # 初始化Pygame
 pygame.init()
 
-video_path=r"../chlamy.avi"
+video_path=r"../video/chlamy.avi"
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -51,16 +51,16 @@ def game_screen():
             # 吃黄球
             for ball in track.yellow_balls:
                 for i, box in enumerate(boxes):
-                    if box.x < ball.x < box.x + box.w and box.y < ball.y < box.y + box.h:
+                    if box.colliderect(ball.rect()):
                         score += 10
                         track.yellow_balls.remove(ball)
-                        while True:
-                            x = random.randint(0, screen_width - 20)
-                            y = random.randint(0, screen_height - 20)
-                            ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
-                            if not track.check_collision(ball_rect):
-                                track.yellow_balls.append(Ball((255, 255, 0), x, y))
-                                break
+                        # while True:
+                        x = random.randint(0, screen_width - 20)
+                        y = random.randint(0, screen_height - 20)
+                        ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
+                        # if not track.check_collision(ball_rect):
+                        track.yellow_balls.append(Ball((255, 255, 0), x, y))
+                        break
 
         # 计算剩余时间
         seconds = (pygame.time.get_ticks() - start_ticks) / 1000
