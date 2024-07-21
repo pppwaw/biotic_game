@@ -8,6 +8,7 @@ from track import Track
 # 初始化Pygame
 pygame.init()
 
+video_path=r"../chlamy.avi"
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -32,7 +33,7 @@ speed = 5
 
 def game_screen():
     global score, game_time
-    cv = CV(r"C:\Users\13510\PycharmProjects\biotic_game\video\chlamy.avi", screen_width, screen_height)
+    cv = CV(video_path, screen_width, screen_height)
     track = Track(screen_width, screen_height)
 
 
