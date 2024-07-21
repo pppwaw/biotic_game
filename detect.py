@@ -86,7 +86,7 @@ def process_frame(frame, trackers):
     return frame
 
 def main():
-    cap = cv2.VideoCapture('video/chlamy.avi')
+    cap = cv2.VideoCapture('chlamy.avi')
     if not cap.isOpened():
         print('Cannot open camera')
         return
@@ -109,9 +109,9 @@ def main():
             break
 
         frame = cv2.resize(frame, (int(600*1.5), 600))
-        frame, contours = detect_circular_contours(frame, prev_contours)
-        prev_contours = contours
+        frame,prev_contours= detect_circular_contours(frame, prev_contours)
 
+        print(len(prev_contours))
         thread = threading.Thread(target=process_frame, args=(frame, trackers))
         thread.start()
         thread.join()
@@ -122,7 +122,7 @@ def main():
             break
         elif action == 'r':
             trackers = []
-            for contour in contours:
+            for contour in prev_contours:
                 tracker = init_tracker(frame, contour)
                 trackers.append(tracker)
 
