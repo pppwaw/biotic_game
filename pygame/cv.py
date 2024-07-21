@@ -43,8 +43,9 @@ class CV:
     def detect_init(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 1)
-        edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-
+        fan = cv2.bitwise_not(blurred)
+        # edges = cv2.adaptiveThreshold(fan, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        edges = cv2.Canny(fan, 40, 60)
         kernel = np.ones((3, 3), np.uint8)
         closing = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
 

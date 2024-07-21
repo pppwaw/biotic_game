@@ -28,29 +28,11 @@ def read_image(cap):
 
 def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 1)
-    edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-
+    blurred = cv2.GaussianBlur(gray, (3, 3), 1)
+    fan = cv2.bitwise_not(blurred)
+    edges = cv2.Canny(fan, 40, 60)
     kernel = np.ones((3, 3), np.uint8)
-    closing = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
-
-    # 距离变换
-    dist_transform = cv2.distanceTransform(closing, cv2.DIST_L2, 5)
-    ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
-    sure_fg = np.uint8(sure_fg)
-
-    # 找背景
-    sure_bg = cv2.dilate(closing, kernel, iterations=3)
-    unknown = cv2.subtract(sure_bg, sure_fg)
-
-    # 标记标签
-    ret, markers = cv2.connectedComponents(sure_fg)
-    markers = markers + 1
-    markers[unknown == 255] = 0
-
-    markers = cv2.watershed(image, markers)
-    image[markers == -1] = [255, 0, 0]
-
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=1)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours
 
@@ -60,16 +42,15 @@ def detect_circular_contours(image, prev_contours=None):
     valid_contours = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < 40:
+        if area < 30:
             continue
         perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
             continue
         circularity = 4 * np.pi * (area / (perimeter * perimeter))
-        if 0.6 < circularity < 1.2:
+        if 0.5 < circularity < 1.2:
             valid_contours.append(contour)
 
-    # 如果有前一帧的轮廓，进行时间一致性处理
     if prev_contours is not None:
         final_contours = []
         for contour in valid_contours:
@@ -85,9 +66,13 @@ def detect_circular_contours(image, prev_contours=None):
 
 def init_tracker(frame, contour):
     x, y, w, h = cv2.boundingRect(contour)
-    tracker = cv2.legacy.TrackerKCF_create()
-    tracker.init(frame, (x, y, w, h))
-    return tracker
+    tracker = cv2.legacy.TrackerCSRT_create()
+    success = tracker.init(frame, (x, y, w, h))
+    if success:
+        print(f'Tracker initialized at position: {(x, y, w, h)}')
+    else:
+        print(f'Failed to initialize tracker at position: {(x, y, w, h)}')
+    return tracker if success else None
 
 
 def key_action():
@@ -107,7 +92,7 @@ def process_frame(frame, trackers):
             p2 = (int(box[0] + box[2]), int(box[1] + box[3]))
             cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
         else:
-            trackers.remove(tracker)  # 移除失效的追踪器
+            trackers.remove(tracker)
     return frame
 
 
@@ -118,7 +103,8 @@ def main():
     initial_contours = detect_circular_contours(frame)[1]
     for contour in initial_contours:
         tracker = init_tracker(frame, contour)
-        trackers.append(tracker)
+        if tracker:
+            trackers.append(tracker)
 
     prev_contours = initial_contours
 
@@ -131,7 +117,8 @@ def main():
 
         for contour in new_contours:
             tracker = init_tracker(frame, contour)
-            trackers.append(tracker)
+            if tracker:
+                trackers.append(tracker)
 
         prev_contours = current_contours
 
@@ -141,13 +128,14 @@ def main():
 
         cv2.imshow('frame', frame)
         action = key_action()
-        if action:
+        if action==True:
             break
         elif action == 'r':
             trackers = []
             for contour in prev_contours:
                 tracker = init_tracker(frame, contour)
-                trackers.append(tracker)
+                if tracker:
+                    trackers.append(tracker)
 
     cap.release()
     end()
