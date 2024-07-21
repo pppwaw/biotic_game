@@ -1,34 +1,42 @@
 import cv2
 import numpy as np
-
-def read_image():
-    ret, frame = cap.read()
-    if not ret:
-        print('Cannot read image')
-        return None
-    tmp = cv2.resize(frame, (1920, 1080))
-    return tmp
+import threading
 
 def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 1)
-
-    # 使用自适应阈值
     edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
-    # 形态学操作
-    kernel = np.ones((3,3), np.uint8)
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+    kernel = np.ones((3, 3), np.uint8)
+    closing = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    # 距离变换
+    dist_transform = cv2.distanceTransform(closing, cv2.DIST_L2, 5)
+    ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
+    sure_fg = np.uint8(sure_fg)
+
+    # 找背景
+    sure_bg = cv2.dilate(closing, kernel, iterations=3)
+    unknown = cv2.subtract(sure_bg, sure_fg)
+
+    # 标记标签
+    ret, markers = cv2.connectedComponents(sure_fg)
+    markers = markers + 1
+    markers[unknown == 255] = 0
+
+    markers = cv2.watershed(image, markers)
+    image[markers == -1] = [255, 0, 0]
 
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours
+
 
 def detect_circular_contours(image, prev_contours=None):
     contours = detect_init(image)
     valid_contours = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < 100:
+        if area < 50:
             continue
         perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
@@ -45,50 +53,81 @@ def detect_circular_contours(image, prev_contours=None):
                 final_contours.append(contour)
         valid_contours = final_contours if final_contours else valid_contours
 
-    for contour in valid_contours:
-
-        cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
+    # for contour in valid_contours:
+    #     cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
 
     return image, valid_contours
 
-def init(frame):
-    box = cv2.selectROI('1', frame, False)
-    cv2.destroyWindow('1')
-    trac = cv2.TrackerCSRT_create()
-    trac.init(frame, box)
-    return trac, box
 
-cap = cv2.VideoCapture('chlamy.avi')
-if not cap.isOpened():
-    print('Cannot open camera')
+def init_tracker(frame, contour):
+    x, y, w, h = cv2.boundingRect(contour)
+    tracker = cv2.TrackerCSRT_create()
+    tracker.init(frame, (x, y, w, h))
+    return tracker
 
-frame = read_image()
 
-trac, box = init(frame)
-prev_contours = None
-
-while True:
-    frame=read_image()
-    if frame is None:
-        break
-    frame, prev_contours = detect_circular_contours(frame, prev_contours)
-    suc, box = trac.update(frame)
-    if suc:
-        x, y, w, h = [int(i) for i in box]
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2, 1)
-    else:
-        cv2.putText(frame, 'R', (100,80), cv2.FONT_HERSHEY_PLAIN, 0.75, (0,0,255), 2)
-
-    cv2.imshow('frame', frame)
-
+def key_action():
     key = cv2.waitKey(1) & 0xff
     if key == 27:
-        break
+        return True
     elif key == ord('r'):
-        trac, box = init(frame)
+        return 'r'
+    return False
 
+def process_frame(frame, trackers):
+    for tracker in trackers:
+        success, box = tracker.update(frame)
+        if success:
+            p1 = (int(box[0]), int(box[1]))
+            p2 = (int(box[0] + box[2]), int(box[1] + box[3]))
+            cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
+        else:
+            trackers.remove(tracker)  # 移除失效的追踪器
+    return frame
 
+def main():
+    cap = cv2.VideoCapture('video/chlamy.avi')
+    if not cap.isOpened():
+        print('Cannot open camera')
+        return
 
-cv2.waitKey(0)
-cap.release()
-cv2.destroyAllWindows()
+    ret, frame = cap.read()
+    frame = cv2.resize(frame, (int(600*1.5), 600))
+
+    trackers = []
+    initial_contours = detect_circular_contours(frame)[1]
+    for contour in initial_contours:
+        tracker = init_tracker(frame, contour)
+        trackers.append(tracker)
+
+    prev_contours = initial_contours
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print('Cannot read image')
+            break
+
+        frame = cv2.resize(frame, (int(600*1.5), 600))
+        frame, contours = detect_circular_contours(frame, prev_contours)
+        prev_contours = contours
+
+        thread = threading.Thread(target=process_frame, args=(frame, trackers))
+        thread.start()
+        thread.join()
+
+        cv2.imshow('frame', frame)
+        action = key_action()
+        if action == True:
+            break
+        elif action == 'r':
+            trackers = []
+            for contour in contours:
+                tracker = init_tracker(frame, contour)
+                trackers.append(tracker)
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
