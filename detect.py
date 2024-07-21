@@ -2,9 +2,11 @@ import cv2
 import numpy as np
 import threading
 
+
 def end():
     cv2.destroyAllWindows()
     quit()
+
 
 def read_video(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -13,14 +15,16 @@ def read_video(video_path):
         end()
     return cap
 
+
 def read_image(cap):
     ret, frame = cap.read()
     if not ret:
         print('Cannot read image')
         cap.release()
         end()
-    frame = cv2.resize(frame, (int(600*1.5), 600))
+    frame = cv2.resize(frame, (int(600 * 1.5), 600))
     return frame
+
 
 def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -56,7 +60,7 @@ def detect_circular_contours(image, prev_contours=None):
     valid_contours = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < 50:
+        if area < 40:
             continue
         perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
@@ -73,17 +77,18 @@ def detect_circular_contours(image, prev_contours=None):
                 final_contours.append(contour)
         valid_contours = final_contours if final_contours else valid_contours
 
-    # for contour in valid_contours:
-    #     cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
+    for contour in valid_contours:
+        cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
 
     return image, valid_contours
 
 
 def init_tracker(frame, contour):
     x, y, w, h = cv2.boundingRect(contour)
-    tracker = cv2.TrackerCSRT_create()
+    tracker = cv2.legacy.TrackerKCF_create()
     tracker.init(frame, (x, y, w, h))
     return tracker
+
 
 def key_action():
     key = cv2.waitKey(1) & 0xff
@@ -92,6 +97,7 @@ def key_action():
     elif key == ord('r'):
         return 'r'
     return False
+
 
 def process_frame(frame, trackers):
     for tracker in trackers:
@@ -104,8 +110,9 @@ def process_frame(frame, trackers):
             trackers.remove(tracker)  # 移除失效的追踪器
     return frame
 
+
 def main():
-    cap = read_video('chlamy.avi')
+    cap = read_video('video/chlamy.avi')
     frame = read_image(cap)
     trackers = []
     initial_contours = detect_circular_contours(frame)[1]
@@ -116,10 +123,18 @@ def main():
     prev_contours = initial_contours
 
     while True:
-        frame=read_image(cap)
-        frame,prev_contours= detect_circular_contours(frame, prev_contours)
+        frame = read_image(cap)
+        frame, current_contours = detect_circular_contours(frame, prev_contours)
 
-        print(len(prev_contours))
+        new_contours = [contour for contour in current_contours if not any(
+            cv2.matchShapes(contour, prev, cv2.CONTOURS_MATCH_I2, 0) < 0.1 for prev in prev_contours)]
+
+        for contour in new_contours:
+            tracker = init_tracker(frame, contour)
+            trackers.append(tracker)
+
+        prev_contours = current_contours
+
         thread = threading.Thread(target=process_frame, args=(frame, trackers))
         thread.start()
         thread.join()
@@ -136,6 +151,7 @@ def main():
 
     cap.release()
     end()
+
 
 if __name__ == "__main__":
     main()
