@@ -1,16 +1,35 @@
-# 这是一个示例 Python 脚本。
+import cv2
+cap = cv2.VideoCapture('dasEuglenita.mp4')
+if not cap.isOpened():
+    print('Cannot open camera')
 
-# 按 Shift+F10 执行或将其替换为您的代码。
-# 按 双击 Shift 在所有地方搜索类、文件、工具窗口、操作和设置。
+def init(frame):
+    box=cv2.selectROI('1',frame,False)
+    trac=cv2.TrackerCSRT_create()
+    trac.init(frame,box)
+    return trac,box
 
+ret, frame=cap.read()
+if not ret:
+    print('Cannot read image')
 
-def print_hi(name):
-    # 在下面的代码行中使用断点来调试脚本。
-    print(f'Hi, {name}')  # 按 Ctrl+F8 切换断点。
-
-
-# 按装订区域中的绿色按钮以运行脚本。
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+trac,box=init(frame)
+while True:
+    ret, frame=cap.read()
+    if not ret:
+        print('Cannot read image')
+        break
+    suc,box=trac.update(frame)
+    if suc:
+        x,y,w,h=int(box[0]),int(box[1]),int(box[2]),int(box[3])
+        cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2,1)
+    else:
+        cv2.putText(frame,'R',(100,80),cv2.FONT_HERSHEY_PLAIN,0.75,(0,0,255),2)
+    cv2.imshow('frame',frame)
+    key = cv2.waitKey(1) & 0xff
+    if key == 27:
+        break
+    elif key == ord('r'):
+        trac,box=init(frame)
+cap.release()
+cv2.destroyAllWindows()
