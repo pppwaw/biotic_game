@@ -1,57 +1,49 @@
 import cv2
 import numpy as np
 
-def process_frame(frame):
-    # 转换为 HSV 色彩空间
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # 定义衣藻的颜色范围
-    lower_green = np.array([120, 90, 200])
-    upper_green = np.array([30, 120, 255])
-
-    # 创建遮罩来提取绿色区域
-    mask = cv2.inRange(hsv, lower_green, upper_green)
-
-    # 使用形态学操作去除噪声
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+def detect_circular_contours(image):
+    # 转换为灰度图像
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # 使用高斯模糊来减少噪声
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # 使用Canny边缘检测
+    edges = cv2.Canny(blurred, 50, 150)
 
     # 查找轮廓
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # 绘制轮廓
+    # 遍历所有轮廓
     for contour in contours:
-        if cv2.contourArea(contour) > 50:  # 忽略小轮廓
-            cv2.drawContours(frame, [contour], -1, (0, 255, 0), 2)
+        # 计算轮廓的圆度
+        area = cv2.contourArea(contour)
+        if area < 50:  # 忽略小轮廓
+            continue
+        perimeter = cv2.arcLength(contour, True)
+        if perimeter == 0:
+            continue
+        circularity = 4 * np.pi * (area / (perimeter * perimeter))
 
-    return frame
+        # 检查圆度是否在合理范围内
+        if 0.7 < circularity < 1.2:
+            # 绘制轮廓
+            cv2.drawContours(image, [contour], -1, (0, 255, 0), 2)
 
-def process_video(video_path):
-    # 打开视频文件
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print(f"无法打开视频: {video_path}")
+    return image
+
+def process_image(image_path):
+    # 读取图像
+    image = cv2.imread(image_path)
+    if image is None:
+        print(f"无法读取图像: {image_path}")
         return
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+    # 检测并绘制圆形轮廓
+    result_image = detect_circular_contours(image)
 
-        # 处理每一帧
-        processed_frame = process_frame(frame)
-
-        # 显示结果
-        cv2.imshow('Detected Chlorella', processed_frame)
-
-        # 按 'q' 键退出
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # 释放视频捕获对象并关闭所有窗口
-    cap.release()
+    # 显示结果
+    cv2.imshow('Detected Circular Contours', result_image)
+    cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-# 调用函数并传入视频路径
-process_video('video/chlamy_PDMS.avi')
+# 调用函数并传入图像路径
+process_image('test.jpg')
