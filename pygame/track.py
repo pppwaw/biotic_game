@@ -4,13 +4,7 @@ from ball import Ball
 
 class Track:
     def __init__(self, screen_width, screen_height):
-        self.fences = []
-        for _ in range(5):
-            x = random.randint(screen_width // 2, screen_width - 50)
-            y = random.randint(50, screen_height - 50)
-            width = random.randint(50, 150)
-            height = random.randint(20, 50)
-            self.fences.append(pygame.Rect(x, y, width, height))
+        self.fences = [] # TODO: detect PDMS
 
         self.yellow_balls = []
         for _ in range(10):
@@ -23,8 +17,6 @@ class Track:
                     break
 
     def draw(self, screen):
-        for fence in self.fences:
-            pygame.draw.rect(screen, (0, 0, 0), fence)
         for ball in self.yellow_balls:
             ball.draw(screen)
 

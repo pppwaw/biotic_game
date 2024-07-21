@@ -2,8 +2,8 @@ import pygame
 import random
 import sys
 from ball import Ball
+from cv import CV
 from track import Track
-from utils import find_closest_ball
 
 # 初始化Pygame
 pygame.init()
@@ -29,94 +29,37 @@ game_time = 60
 # 速度设置
 speed = 5
 
+
 def game_screen():
     global score, game_time
-
-    # 创建蓝球和红球
+    cv = CV(r"C:\Users\13510\PycharmProjects\biotic_game\video\chlamy.avi", screen_width, screen_height)
     track = Track(screen_width, screen_height)
-    balls = []
-    for _ in range(10):
-        while True:
-            x = random.randint(50, screen_width // 2 - 50)
-            y = random.randint(50, screen_height - 50)
-            ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
-            if not track.check_collision(ball_rect):
-                balls.append(Ball((0, 0, 255), x, y))
-                break
 
-    selected_index = 0
-    balls[selected_index].color = (255, 0, 0)
 
     clock = pygame.time.Clock()
     start_ticks = pygame.time.get_ticks()
 
     running = True
     while running:
+        boxes, image = cv.refresh()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="UP")
-                    balls[selected_index].color = (255, 0, 0)
-                if event.key == pygame.K_DOWN:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="DOWN")
-                    balls[selected_index].color = (255, 0, 0)
-                if event.key == pygame.K_LEFT:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="LEFT")
-                    balls[selected_index].color = (255, 0, 0)
-                if event.key == pygame.K_RIGHT:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="RIGHT")
-                    balls[selected_index].color = (255, 0, 0)
-
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            balls[selected_index].y -= speed
-        if keys[pygame.K_s]:
-            balls[selected_index].y += speed
-        if keys[pygame.K_a]:
-            balls[selected_index].x -= speed
-        if keys[pygame.K_d]:
-            balls[selected_index].x += speed
-
-        # 边界检查
-        if balls[selected_index].x - balls[selected_index].radius < 0:
-            balls[selected_index].x = balls[selected_index].radius
-        if balls[selected_index].x + balls[selected_index].radius > screen_width:
-            balls[selected_index].x = screen_width - balls[selected_index].radius
-        if balls[selected_index].y - balls[selected_index].radius < 0:
-            balls[selected_index].y = balls[selected_index].radius
-        if balls[selected_index].y + balls[selected_index].radius > screen_height:
-            balls[selected_index].y = screen_height - balls[selected_index].radius
-
-        # 碰撞检查
-        if track.check_collision(pygame.Rect(balls[selected_index].x - balls[selected_index].radius, balls[selected_index].y - balls[selected_index].radius, balls[selected_index].radius * 2, balls[selected_index].radius * 2)):
-            if keys[pygame.K_w]:
-                balls[selected_index].y += speed
-            if keys[pygame.K_s]:
-                balls[selected_index].y -= speed
-            if keys[pygame.K_a]:
-                balls[selected_index].x += speed
-            if keys[pygame.K_d]:
-                balls[selected_index].x -= speed
-
-        # 吃黄球
-        for ball in track.yellow_balls:
-            if pygame.Rect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2).colliderect(pygame.Rect(balls[selected_index].x - balls[selected_index].radius, balls[selected_index].y - balls[selected_index].radius, balls[selected_index].radius * 2, balls[selected_index].radius * 2)):
-                score += 10
-                track.yellow_balls.remove(ball)
-                while True:
-                    x = random.randint(0, screen_width - 20)
-                    y = random.randint(0, screen_height - 20)
-                    ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
-                    if not track.check_collision(ball_rect):
-                        track.yellow_balls.append(Ball((255, 255, 0), x, y))
-                        break
+        if boxes:
+            # 吃黄球
+            for ball in track.yellow_balls:
+                for i, box in enumerate(boxes):
+                    if box.x < ball.x < box.x + box.w and box.y < ball.y < box.y + box.h:
+                        score += 10
+                        track.yellow_balls.remove(ball)
+                        while True:
+                            x = random.randint(0, screen_width - 20)
+                            y = random.randint(0, screen_height - 20)
+                            ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
+                            if not track.check_collision(ball_rect):
+                                track.yellow_balls.append(Ball((255, 255, 0), x, y))
+                                break
 
         # 计算剩余时间
         seconds = (pygame.time.get_ticks() - start_ticks) / 1000
@@ -124,9 +67,12 @@ def game_screen():
             running = False
 
         # 绘制界面
-        screen.fill(WHITE)
-        for ball in balls:
-            ball.draw(screen)
+        # 用image 绘制
+        # turn ndarray to surface
+        image = pygame.image.frombuffer(image.tobytes(), image.shape[1::-1], "BGR")
+        screen.blit(image, (0, 0))
+        for box in boxes:
+            box.draw(screen)
         track.draw(screen)
 
         # 绘制分数和进度条
@@ -141,6 +87,7 @@ def game_screen():
         clock.tick(60)
 
     game_over_screen()
+
 
 # 创建游戏结束界面
 def game_over_screen():
@@ -163,6 +110,7 @@ def game_over_screen():
 
         pygame.display.flip()
 
+
 # 创建开始界面
 def main():
     global score, game_time
@@ -183,6 +131,7 @@ def main():
         screen.blit(start_text, (screen_width // 2 - 150, screen_height // 2 + 10))
 
         pygame.display.flip()
+
 
 if __name__ == "__main__":
     main()
