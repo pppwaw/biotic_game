@@ -1,19 +1,22 @@
 import cv2
-cap = cv2.VideoCapture('dasEuglenita.mp4')
+cap = cv2.VideoCapture('chlamy.avi')
 if not cap.isOpened():
     print('Cannot open camera')
 
 def init(frame):
     box=cv2.selectROI('1',frame,False)
+    cv2.destroyWindow('1')
     trac=cv2.TrackerCSRT_create()
     trac.init(frame,box)
     return trac,box
 
 ret, frame=cap.read()
+
 if not ret:
     print('Cannot read image')
 
 trac,box=init(frame)
+
 while True:
     ret, frame=cap.read()
     if not ret:
