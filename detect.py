@@ -1,6 +1,14 @@
 import cv2
 import numpy as np
 
+def read_image():
+    ret, frame = cap.read()
+    if not ret:
+        print('Cannot read image')
+        return None
+    tmp = cv2.resize(frame, (1920, 1080))
+    return tmp
+
 def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 1)
@@ -50,36 +58,20 @@ def init(frame):
     trac.init(frame, box)
     return trac, box
 
-def key_action():
-    key = cv2.waitKey(1) & 0xff
-    if key == 27:
-        return True
-    elif key == ord('r'):
-        trac, box = init(frame)
-    return False
-def find(frame):
-    return
-
 cap = cv2.VideoCapture('chlamy.avi')
 if not cap.isOpened():
     print('Cannot open camera')
 
-ret, frame = cap.read()
-frame = cv2.resize(frame, (1920, 1080))
+frame = read_image()
 
 trac, box = init(frame)
 prev_contours = None
 
 while True:
-    ret, frame = cap.read()
-    if not ret:
-        print('Cannot read image')
+    frame=read_image()
+    if frame is None:
         break
-
-    frame = cv2.resize(frame, (1920, 1080))
-    frame, contours = detect_circular_contours(frame, prev_contours)
-    prev_contours = contours
-
+    frame, prev_contours = detect_circular_contours(frame, prev_contours)
     suc, box = trac.update(frame)
     if suc:
         x, y, w, h = [int(i) for i in box]
@@ -88,8 +80,13 @@ while True:
         cv2.putText(frame, 'R', (100,80), cv2.FONT_HERSHEY_PLAIN, 0.75, (0,0,255), 2)
 
     cv2.imshow('frame', frame)
-    if key_action():
+
+    key = cv2.waitKey(1) & 0xff
+    if key == 27:
         break
+    elif key == ord('r'):
+        trac, box = init(frame)
+
 
 
 cv2.waitKey(0)
