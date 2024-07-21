@@ -2,6 +2,26 @@ import cv2
 import numpy as np
 import threading
 
+def end():
+    cv2.destroyAllWindows()
+    quit()
+
+def read_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print('Cannot open camera')
+        end()
+    return cap
+
+def read_image(cap):
+    ret, frame = cap.read()
+    if not ret:
+        print('Cannot read image')
+        cap.release()
+        end()
+    frame = cv2.resize(frame, (int(600*1.5), 600))
+    return frame
+
 def detect_init(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 1)
@@ -65,7 +85,6 @@ def init_tracker(frame, contour):
     tracker.init(frame, (x, y, w, h))
     return tracker
 
-
 def key_action():
     key = cv2.waitKey(1) & 0xff
     if key == 27:
@@ -86,14 +105,8 @@ def process_frame(frame, trackers):
     return frame
 
 def main():
-    cap = cv2.VideoCapture('chlamy.avi')
-    if not cap.isOpened():
-        print('Cannot open camera')
-        return
-
-    ret, frame = cap.read()
-    frame = cv2.resize(frame, (int(600*1.5), 600))
-
+    cap = read_video('chlamy.avi')
+    frame = read_image(cap)
     trackers = []
     initial_contours = detect_circular_contours(frame)[1]
     for contour in initial_contours:
@@ -103,12 +116,7 @@ def main():
     prev_contours = initial_contours
 
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print('Cannot read image')
-            break
-
-        frame = cv2.resize(frame, (int(600*1.5), 600))
+        frame=read_image(cap)
         frame,prev_contours= detect_circular_contours(frame, prev_contours)
 
         print(len(prev_contours))
@@ -118,7 +126,7 @@ def main():
 
         cv2.imshow('frame', frame)
         action = key_action()
-        if action == True:
+        if action:
             break
         elif action == 'r':
             trackers = []
@@ -127,7 +135,7 @@ def main():
                 trackers.append(tracker)
 
     cap.release()
-    cv2.destroyAllWindows()
+    end()
 
 if __name__ == "__main__":
     main()
