@@ -1,49 +1,86 @@
 import cv2
 import numpy as np
 
-def detect_circular_contours(image):
-    # 转换为灰度图像
+def detect_circular_contours(image, prev_contours=None):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # 使用高斯模糊来减少噪声
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    # 使用Canny边缘检测
-    edges = cv2.Canny(blurred, 50, 150)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 1)
 
-    # 查找轮廓
+    # 使用自适应阈值
+    edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+    # 形态学操作
+    kernel = np.ones((3,3), np.uint8)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # 遍历所有轮廓
+    valid_contours = []
     for contour in contours:
-        # 计算轮廓的圆度
         area = cv2.contourArea(contour)
-        if area < 50:  # 忽略小轮廓
+        if area < 100:
             continue
         perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
             continue
         circularity = 4 * np.pi * (area / (perimeter * perimeter))
+        if 0.6 < circularity < 1.2:
+            valid_contours.append(contour)
 
-        # 检查圆度是否在合理范围内
-        if 0.7 < circularity < 1.2:
-            # 绘制轮廓
-            cv2.drawContours(image, [contour], -1, (0, 255, 0), 2)
+    # 如果有前一帧的轮廓，进行时间一致性处理
+    if prev_contours is not None:
+        final_contours = []
+        for contour in valid_contours:
+            if any(cv2.matchShapes(contour, prev, cv2.CONTOURS_MATCH_I2, 0) < 0.1 for prev in prev_contours):
+                final_contours.append(contour)
+        valid_contours = final_contours if final_contours else valid_contours
 
-    return image
+    for contour in valid_contours:
+        cv2.drawContours(image, [contour], -1, (255, 0, 0), 2)
 
-def process_image(image_path):
-    # 读取图像
-    image = cv2.imread(image_path)
-    if image is None:
-        print(f"无法读取图像: {image_path}")
-        return
+    return image, valid_contours
 
-    # 检测并绘制圆形轮廓
-    result_image = detect_circular_contours(image)
+def init(frame):
+    box = cv2.selectROI('1', frame, False)
+    cv2.destroyWindow('1')
+    trac = cv2.TrackerCSRT_create()
+    trac.init(frame, box)
+    return trac, box
 
-    # 显示结果
-    cv2.imshow('Detected Circular Contours', result_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+cap = cv2.VideoCapture('chlamy.avi')
+if not cap.isOpened():
+    print('Cannot open camera')
 
-# 调用函数并传入图像路径
-process_image('test.jpg')
+ret, frame = cap.read()
+frame = cv2.resize(frame, (1920, 1080))
+
+trac, box = init(frame)
+prev_contours = None
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print('Cannot read image')
+        break
+
+    frame = cv2.resize(frame, (1920, 1080))
+    frame, contours = detect_circular_contours(frame, prev_contours)
+    prev_contours = contours
+
+    suc, box = trac.update(frame)
+    if suc:
+        x, y, w, h = [int(i) for i in box]
+        cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2, 1)
+    else:
+        cv2.putText(frame, 'R', (100,80), cv2.FONT_HERSHEY_PLAIN, 0.75, (0,0,255), 2)
+
+    cv2.imshow('frame', frame)
+
+    key = cv2.waitKey(1) & 0xff
+    if key == 27:
+        break
+    elif key == ord('r'):
+        trac, box = init(frame)
+
+cv2.waitKey(0)
+cap.release()
+cv2.destroyAllWindows()
