@@ -66,7 +66,7 @@ def detect_circular_contours(image, prev_contours=None):
 
 def init_tracker(frame, contour):
     x, y, w, h = cv2.boundingRect(contour)
-    tracker = cv2.legacy.TrackerCSRT_create()
+    tracker = cv2.legacy.TrackerKCF_create()
     success = tracker.init(frame, (x, y, w, h))
     if success:
         print(f'Tracker initialized at position: {(x, y, w, h)}')

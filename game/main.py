@@ -1,14 +1,16 @@
-import pygame
 import random
+
+import pygame
 import sys
-from ball import Ball
-from cv import CV
-from track import Track
+
+from game.ball import Ball
+from game.cv import CV
+from game.track import Track
 
 # 初始化Pygame
 pygame.init()
 
-video_path=r"../video/chlamy.avi"
+video_path = r"../video/chlamy.avi"
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -31,36 +33,65 @@ game_time = 60
 speed = 5
 
 
+# 创建游戏结束界面
+def game_over_screen():
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                main()
+
+        screen.fill(WHITE)
+        game_over_text = font.render("Game Over", True, BLACK)
+        score_text = small_font.render(f"Score: {score}", True, BLACK)
+        restart_text = small_font.render("Press Enter to Restart", True, BLACK)
+
+        screen.blit(game_over_text, (screen_width // 2 - 150, screen_height // 2 - 50))
+        screen.blit(score_text, (screen_width // 2 - 50, screen_height // 2 + 10))
+        screen.blit(restart_text, (screen_width // 2 - 150, screen_height // 2 + 50))
+
+        pygame.display.flip()
+
+
 def game_screen():
     global score, game_time
     cv = CV(video_path, screen_width, screen_height)
     track = Track(screen_width, screen_height)
-
 
     clock = pygame.time.Clock()
     start_ticks = pygame.time.get_ticks()
 
     running = True
     while running:
-        boxes, image = cv.refresh()
+        image, boxes = cv.get_image_and_boxes()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    cv.select_left()
+                if event.key == pygame.K_RIGHT:
+                    cv.select_right()
+                if event.key == pygame.K_UP:
+                    cv.select_up()
+                if event.key == pygame.K_DOWN:
+                    cv.select_down()
+
         if boxes:
             # 吃黄球
+            selected_box = cv.boxes[cv.selected_index]
             for ball in track.yellow_balls:
-                for i, box in enumerate(boxes):
-                    if box.colliderect(ball.rect()):
-                        score += 10
-                        track.yellow_balls.remove(ball)
-                        # while True:
-                        x = random.randint(0, screen_width - 20)
-                        y = random.randint(0, screen_height - 20)
-                        ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
-                        # if not track.check_collision(ball_rect):
-                        track.yellow_balls.append(Ball((255, 255, 0), x, y))
-                        break
+                if selected_box.colliderect(ball.rect()):
+                    score += 10
+                    track.yellow_balls.remove(ball)
+                    x = random.randint(0, screen_width - 20)
+                    y = random.randint(0, screen_height - 20)
+                    ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
+                    track.yellow_balls.append(Ball((255, 255, 0), x, y))
+                    break
 
         # 计算剩余时间
         seconds = (pygame.time.get_ticks() - start_ticks) / 1000
@@ -88,28 +119,6 @@ def game_screen():
         clock.tick(60)
 
     game_over_screen()
-
-
-# 创建游戏结束界面
-def game_over_screen():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                main()
-
-        screen.fill(WHITE)
-        game_over_text = font.render("Game Over", True, BLACK)
-        score_text = small_font.render(f"Score: {score}", True, BLACK)
-        restart_text = small_font.render("Press Enter to Restart", True, BLACK)
-
-        screen.blit(game_over_text, (screen_width // 2 - 150, screen_height // 2 - 50))
-        screen.blit(score_text, (screen_width // 2 - 50, screen_height // 2 + 10))
-        screen.blit(restart_text, (screen_width // 2 - 150, screen_height // 2 + 50))
-
-        pygame.display.flip()
 
 
 # 创建开始界面
