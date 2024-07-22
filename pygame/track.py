@@ -2,11 +2,12 @@ import pygame
 import random
 from ball import Ball
 
+
 class Track:
     def __init__(self, screen_width, screen_height):
         self.fences = []
         for _ in range(5):
-            x = random.randint(screen_width // 2, screen_width - 50)
+            x = random.randint(50, screen_width - 50)
             y = random.randint(50, screen_height - 50)
             width = random.randint(50, 150)
             height = random.randint(20, 50)
