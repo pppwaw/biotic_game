@@ -2,6 +2,9 @@ import pygame
 import random
 from ball import Ball
 
+gold_image = pygame.image.load('gold.png')
+gold_image = pygame.transform.scale(gold_image, (20, 20))
+
 
 class Track:
     def __init__(self, screen_width, screen_height):
@@ -27,7 +30,8 @@ class Track:
         for fence in self.fences:
             pygame.draw.rect(screen, (0, 0, 0), fence)
         for ball in self.yellow_balls:
-            ball.draw(screen)
+            ball_rect = pygame.Rect(ball.x - 10, ball.y - 10, 20, 20)
+            screen.blit(gold_image, ball_rect)
 
     def check_collision(self, ball_rect):
         return any(fence.colliderect(ball_rect) for fence in self.fences)
