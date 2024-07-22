@@ -1,63 +1,45 @@
-import pygame
-import sys
+import cv2
 
-# 初始化Pygame
-pygame.init()
+cap = cv2.VideoCapture('./Desktop/Lane.mp4')
+if not cap.isOpened():
+    print('Cannot open camera')
 
-# 屏幕设置
-screen_width = 800
-screen_height = 600
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("WASD Indicator")
 
-# 颜色设置
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
+def init(frame):
+    box = cv2.selectROI('1', frame, False)
+    cv2.destroyWindow("1")
+    trac = cv2.TrackerCSRT_create()
+    trac.init(frame, box)
+    return trac, box
 
-# 三角形顶点坐标
-triangle_size = 20
-triangle_up = [(0, -triangle_size), (-triangle_size, triangle_size), (triangle_size, triangle_size)]
-triangle_down = [(0, triangle_size), (-triangle_size, -triangle_size), (triangle_size, -triangle_size)]
-triangle_left = [(-triangle_size, 0), (triangle_size, -triangle_size), (triangle_size, triangle_size)]
-triangle_right = [(triangle_size, 0), (-triangle_size, -triangle_size), (-triangle_size, triangle_size)]
 
-def draw_triangle(surface, color, points, position):
-    points = [(x + position[0], y + position[1]) for x, y in points]
-    pygame.draw.polygon(surface, color, points)
+ret, frame = cap.read()
+if not ret:
+    print('Cannot read image')
 
-def draw_key_indicator(surface, keys):
-    x_offset = 40
-    y_offset = screen_height - 60
+target_width = 800
 
-    # 根据按键状态绘制指向不同方向的三角形
-    if keys[pygame.K_w]:
-        draw_triangle(surface, GREEN, triangle_up, (x_offset, y_offset))
-    if keys[pygame.K_s]:
-        draw_triangle(surface, GREEN, triangle_down, (x_offset, y_offset))
-    if keys[pygame.K_a]:
-        draw_triangle(surface, GREEN, triangle_left, (x_offset, y_offset))
-    if keys[pygame.K_d]:
-        draw_triangle(surface, GREEN, triangle_right, (x_offset, y_offset))
-
-def game_loop():
-    clock = pygame.time.Clock()
-    running = True
-
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-        keys = pygame.key.get_pressed()
-
-        screen.fill(WHITE)
-        draw_key_indicator(screen, keys)
-
-        pygame.display.flip()
-        clock.tick(60)
-
-if __name__ == "__main__":
-    game_loop()
+# 计算目标窗口高度，保持1.5:1的纵横比
+target_height = int(target_width / 1.5)
+frame = cv2.resize(frame, (target_width, target_height))
+trac, box = init(frame)
+while True:
+    ret, frame = cap.read()
+    frame = cv2.resize(frame, (target_width, target_height))
+    if not ret:
+        print('Cannot read image')
+        break
+    suc, box = trac.update(frame)
+    if suc:
+        x, y, w, h = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2, 1)
+    else:
+        cv2.putText(frame, 'R', (100, 80), cv2.FONT_HERSHEY_PLAIN, 0.75, (0, 0, 255), 2)
+    cv2.imshow('frame', frame)
+    key = cv2.waitKey(1) & 0xff
+    if key == 27:
+        break
+    elif key == ord('r'):
+        trac, box = init(frame)
+cap.release()
+cv2.destroyAllWindows()

@@ -1,3 +1,4 @@
+import threading
 import pygame
 import random
 import serial
@@ -8,7 +9,7 @@ from utils import find_closest_ball
 
 # 初始化Pygame
 pygame.init()
-ser = serial.Serial('COM8', 9600)
+
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -22,15 +23,6 @@ BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 
-triangle_size = 10
-triangle_up = [(0, -triangle_size), (-triangle_size, triangle_size), (triangle_size, triangle_size)]
-triangle_down = [(0, triangle_size), (-triangle_size, -triangle_size), (triangle_size, -triangle_size)]
-triangle_left = [(-triangle_size, 0), (triangle_size, -triangle_size), (triangle_size, triangle_size)]
-triangle_right = [(triangle_size, 0), (-triangle_size, -triangle_size), (-triangle_size, triangle_size)]
-
-def draw_triangle(surface, color, points, position):
-    points = [(x + position[0], y + position[1]) for x, y in points]
-    pygame.draw.polygon(surface, color, points)
 # 字体设置
 font = pygame.font.Font(None, 74)
 small_font = pygame.font.Font(None, 36)
@@ -42,6 +34,46 @@ game_time = 60
 # 速度设置
 speed = 5
 
+triangle_size = 10
+triangle_up = [(0, -triangle_size), (-triangle_size, triangle_size), (triangle_size, triangle_size)]
+triangle_down = [(0, triangle_size), (-triangle_size, -triangle_size), (triangle_size, -triangle_size)]
+triangle_left = [(-triangle_size, 0), (triangle_size, -triangle_size), (triangle_size, triangle_size)]
+triangle_right = [(triangle_size, 0), (-triangle_size, -triangle_size), (-triangle_size, triangle_size)]
+
+def draw_triangle(surface, color, points, position):
+    points = [(x + position[0], y + position[1]) for x, y in points]
+    pygame.draw.polygon(surface, color, points)
+
+def draw_key_indicator(surface, keys):
+    x_offset = 40
+    y_offset = screen_height - 60
+    x,y=keys.split()
+    x,y=int(x),int(y)
+    # 根据按键状态绘制指向不同方向的三角形
+    if y>0:
+        draw_triangle(surface, BLACK, triangle_up, (x_offset, y_offset-10))
+    if y<0:
+        draw_triangle(surface, BLACK, triangle_down, (x_offset, y_offset+10))
+    if x<0:
+        draw_triangle(surface, BLACK, triangle_left, (x_offset-10, y_offset))
+    if x>0:
+        draw_triangle(surface, BLACK, triangle_right, (x_offset+10, y_offset))
+# 串口设置
+def init_serial():
+    try:
+        ser = serial.Serial('COM8', 9600, timeout=1)
+        return ser
+    except serial.SerialException as e:
+        print(f"Error: could not open port 'COM8'. {e}")
+        return None
+
+def listen_serial(ser):
+    if ser and ser.is_open:
+        if ser.in_waiting > 0:
+            data = ser.readline().decode('utf-8').strip()
+            # print(f"Received data: {data}")
+            return data
+    return None
 
 def move_balls(balls, direction):
     for ball in balls:
@@ -59,46 +91,9 @@ def move_balls(balls, direction):
             ball.x += dx
             ball.y += dy
 
-def draw_direction_arrows(screen, direction):
-    arrow_length = 50
-    arrow_width = 10
-    if direction == "UP":
-        pygame.draw.polygon(screen, BLACK, [(screen_width // 2, screen_height // 2 - arrow_length),
-                                            (screen_width // 2 - arrow_width, screen_height // 2 - arrow_width),
-                                            (screen_width // 2 + arrow_width, screen_height // 2 - arrow_width)])
-    elif direction == "DOWN":
-        pygame.draw.polygon(screen, BLACK, [(screen_width // 2, screen_height // 2 + arrow_length),
-                                            (screen_width // 2 - arrow_width, screen_height // 2 + arrow_width),
-                                            (screen_width // 2 + arrow_width, screen_height // 2 + arrow_width)])
-    elif direction == "LEFT":
-        pygame.draw.polygon(screen, BLACK, [(screen_width // 2 - arrow_length, screen_height // 2),
-                                            (screen_width // 2 - arrow_width, screen_height // 2 - arrow_width),
-                                            (screen_width // 2 - arrow_width, screen_height // 2 + arrow_width)])
-    elif direction == "RIGHT":
-        pygame.draw.polygon(screen, BLACK, [(screen_width // 2 + arrow_length, screen_height // 2),
-                                            (screen_width // 2 + arrow_width, screen_height // 2 - arrow_width),
-                                            (screen_width // 2 + arrow_width, screen.height // 2 + arrow_width)])
-
-def draw_key_indicator(surface, keys):
-    x_offset = 40
-    y_offset = screen_height - 60
-
-    # 根据按键状态绘制指向不同方向的三角形
-    if keys[pygame.K_w]:
-        draw_triangle(surface, BLACK, triangle_up, (x_offset, y_offset-10))
-    if keys[pygame.K_s]:
-        draw_triangle(surface, BLACK, triangle_down, (x_offset, y_offset+10))
-    if keys[pygame.K_a]:
-        draw_triangle(surface, BLACK, triangle_left, (x_offset-10, y_offset))
-    if keys[pygame.K_d]:
-        draw_triangle(surface, BLACK, triangle_right, (x_offset+10, y_offset))
 
 def game_screen():
     global score, game_time
-
-    line = ser.readline()
-    data = line.decode('utf-8').strip()
-    print(f"Received: {data}")
 
     # 创建蓝球和红球
     track = Track(screen_width, screen_height)
@@ -119,11 +114,12 @@ def game_screen():
     start_ticks = pygame.time.get_ticks()
 
     direction = None  # 初始方向为空
+    pre=None
+    ser = init_serial()  # 初始化串口
 
     running = True
     while running:
         for ball in balls:
-
             dx = random.randint(-5, 5)
             dy = random.randint(-5, 5)
             ball_rect = pygame.Rect(ball.x +dx - ball.radius, ball.y + dy - ball.radius, ball.radius * 2, ball.radius * 2)
@@ -154,14 +150,28 @@ def game_screen():
                     balls[selected_index].color = (255, 0, 0)
 
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            move_balls(balls, "UP")
-        if keys[pygame.K_s]:
-            move_balls(balls, "DOWN")
-        if keys[pygame.K_a]:
-            move_balls(balls, "LEFT")
-        if keys[pygame.K_d]:
-            move_balls(balls, "RIGHT")
+        data = listen_serial(ser)
+        if data:
+            x,y=data.split()
+            x,y=int(x),int(y)
+            print(x,y)
+            if y>0:
+                move_balls(balls, "UP")
+            if y<0:
+                move_balls(balls, "DOWN")
+            if x<0:
+                move_balls(balls, "LEFT")
+            if x>0:
+                move_balls(balls, "RIGHT")
+
+        # if keys[pygame.K_w]:
+        #     move_balls(balls, "UP")
+        # if keys[pygame.K_s]:
+        #     move_balls(balls, "DOWN")
+        # if keys[pygame.K_a]:
+        #     move_balls(balls, "LEFT")
+        # if keys[pygame.K_d]:
+        #     move_balls(balls, "RIGHT")
 
         # 边界检查
         for ball in balls:
@@ -211,10 +221,8 @@ def game_screen():
         for ball in balls:
             ball.draw(screen)
         track.draw(screen)
-        draw_key_indicator(screen, keys)
 
-        if direction:
-            draw_direction_arrows(screen, direction)
+
 
         # 绘制分数和进度条
         score_text = small_font.render(f"Score: {score}", True, BLACK)
@@ -224,9 +232,14 @@ def game_screen():
         pygame.draw.rect(screen, BLACK, (screen_width - 220, 10, progress_bar_length, 20), 2)
         pygame.draw.rect(screen, BLACK, (screen_width - 220, 10, int(progress_bar_length * (seconds / game_time)), 20))
 
+        if data:
+            draw_key_indicator(screen,data)
+        elif pre is not None:
+            draw_key_indicator(screen,pre)
+        pre=data
         pygame.display.flip()
         clock.tick(60)
-
+    ser.close()
     game_over_screen()
 
 # 创建游戏结束界面
@@ -250,14 +263,12 @@ def game_over_screen():
 
         pygame.display.flip()
 
-# 创建开始界面
 def main():
     global score, game_time
     score = 0
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                ser.close()
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
@@ -274,4 +285,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
