@@ -1,5 +1,6 @@
 import pygame
 import random
+import serial
 import sys
 from ball import Ball
 from track import Track
@@ -7,7 +8,7 @@ from utils import find_closest_ball
 
 # 初始化Pygame
 pygame.init()
-
+ser = serial.Serial('COM8', 9600)
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -21,6 +22,15 @@ BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 
+triangle_size = 10
+triangle_up = [(0, -triangle_size), (-triangle_size, triangle_size), (triangle_size, triangle_size)]
+triangle_down = [(0, triangle_size), (-triangle_size, -triangle_size), (triangle_size, -triangle_size)]
+triangle_left = [(-triangle_size, 0), (triangle_size, -triangle_size), (triangle_size, triangle_size)]
+triangle_right = [(triangle_size, 0), (-triangle_size, -triangle_size), (-triangle_size, triangle_size)]
+
+def draw_triangle(surface, color, points, position):
+    points = [(x + position[0], y + position[1]) for x, y in points]
+    pygame.draw.polygon(surface, color, points)
 # 字体设置
 font = pygame.font.Font(None, 74)
 small_font = pygame.font.Font(None, 36)
@@ -31,6 +41,7 @@ game_time = 60
 
 # 速度设置
 speed = 5
+
 
 def move_balls(balls, direction):
     for ball in balls:
@@ -68,8 +79,26 @@ def draw_direction_arrows(screen, direction):
                                             (screen_width // 2 + arrow_width, screen_height // 2 - arrow_width),
                                             (screen_width // 2 + arrow_width, screen.height // 2 + arrow_width)])
 
+def draw_key_indicator(surface, keys):
+    x_offset = 40
+    y_offset = screen_height - 60
+
+    # 根据按键状态绘制指向不同方向的三角形
+    if keys[pygame.K_w]:
+        draw_triangle(surface, BLACK, triangle_up, (x_offset, y_offset-10))
+    if keys[pygame.K_s]:
+        draw_triangle(surface, BLACK, triangle_down, (x_offset, y_offset+10))
+    if keys[pygame.K_a]:
+        draw_triangle(surface, BLACK, triangle_left, (x_offset-10, y_offset))
+    if keys[pygame.K_d]:
+        draw_triangle(surface, BLACK, triangle_right, (x_offset+10, y_offset))
+
 def game_screen():
     global score, game_time
+
+    line = ser.readline()
+    data = line.decode('utf-8').strip()
+    print(f"Received: {data}")
 
     # 创建蓝球和红球
     track = Track(screen_width, screen_height)
@@ -108,16 +137,21 @@ def game_screen():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    direction = "UP"
+                    balls[selected_index].color = (0, 0, 255)
+                    selected_index = find_closest_ball(balls, selected_index, direction="UP")
+                    balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_DOWN:
-                    direction = "DOWN"
+                    balls[selected_index].color = (0, 0, 255)
+                    selected_index = find_closest_ball(balls, selected_index, direction="DOWN")
+                    balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_LEFT:
-                    direction = "LEFT"
+                    balls[selected_index].color = (0, 0, 255)
+                    selected_index = find_closest_ball(balls, selected_index, direction="LEFT")
+                    balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_RIGHT:
-                    direction = "RIGHT"
-                if event.key == pygame.K_SPACE:
-                    balls[selected_index].color = BLUE if balls[selected_index].color == RED else RED
-                    selected_index = find_closest_ball(balls, selected_index, direction)
+                    balls[selected_index].color = (0, 0, 255)
+                    selected_index = find_closest_ball(balls, selected_index, direction="RIGHT")
+                    balls[selected_index].color = (255, 0, 0)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
@@ -177,6 +211,7 @@ def game_screen():
         for ball in balls:
             ball.draw(screen)
         track.draw(screen)
+        draw_key_indicator(screen, keys)
 
         if direction:
             draw_direction_arrows(screen, direction)
@@ -222,6 +257,7 @@ def main():
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                ser.close()
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
@@ -238,3 +274,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
