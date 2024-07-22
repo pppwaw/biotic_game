@@ -17,6 +17,9 @@ pygame.display.set_caption("Racing Chlamy")
 # 颜色设置
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
+RED = (255, 0, 0)
+YELLOW = (255, 255, 0)
 
 # 字体设置
 font = pygame.font.Font(None, 74)
@@ -28,6 +31,42 @@ game_time = 60
 
 # 速度设置
 speed = 5
+
+def move_balls(balls, direction):
+    for ball in balls:
+        dx, dy = 0, 0
+        if direction == "UP":
+            dy = -(speed + random.randint(-1, 1))
+        elif direction == "DOWN":
+            dy = speed + random.randint(-1, 1)
+        elif direction == "LEFT":
+            dx = -(speed + random.randint(-1, 1))
+        elif direction == "RIGHT":
+            dx = speed + random.randint(-1, 1)
+
+        if 0 < ball.x + dx < screen_width and 0 < ball.y + dy < screen_height:
+            ball.x += dx
+            ball.y += dy
+
+def draw_direction_arrows(screen, direction):
+    arrow_length = 50
+    arrow_width = 10
+    if direction == "UP":
+        pygame.draw.polygon(screen, BLACK, [(screen_width // 2, screen_height // 2 - arrow_length),
+                                            (screen_width // 2 - arrow_width, screen_height // 2 - arrow_width),
+                                            (screen_width // 2 + arrow_width, screen_height // 2 - arrow_width)])
+    elif direction == "DOWN":
+        pygame.draw.polygon(screen, BLACK, [(screen_width // 2, screen_height // 2 + arrow_length),
+                                            (screen_width // 2 - arrow_width, screen_height // 2 + arrow_width),
+                                            (screen_width // 2 + arrow_width, screen_height // 2 + arrow_width)])
+    elif direction == "LEFT":
+        pygame.draw.polygon(screen, BLACK, [(screen_width // 2 - arrow_length, screen_height // 2),
+                                            (screen_width // 2 - arrow_width, screen_height // 2 - arrow_width),
+                                            (screen_width // 2 - arrow_width, screen_height // 2 + arrow_width)])
+    elif direction == "RIGHT":
+        pygame.draw.polygon(screen, BLACK, [(screen_width // 2 + arrow_length, screen_height // 2),
+                                            (screen_width // 2 + arrow_width, screen_height // 2 - arrow_width),
+                                            (screen_width // 2 + arrow_width, screen.height // 2 + arrow_width)])
 
 def game_screen():
     global score, game_time
@@ -41,73 +80,83 @@ def game_screen():
             y = random.randint(50, screen_height - 50)
             ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
             if not track.check_collision(ball_rect):
-                balls.append(Ball((0, 0, 255), x, y))
+                balls.append(Ball(BLUE, x, y))
                 break
 
     selected_index = 0
-    balls[selected_index].color = (255, 0, 0)
+    balls[selected_index].color = RED
 
     clock = pygame.time.Clock()
     start_ticks = pygame.time.get_ticks()
 
+    direction = None  # 初始方向为空
+
     running = True
     while running:
+        for ball in balls:
+
+            dx = random.randint(-5, 5)
+            dy = random.randint(-5, 5)
+            ball_rect = pygame.Rect(ball.x +dx - ball.radius, ball.y + dy - ball.radius, ball.radius * 2, ball.radius * 2)
+            if 0 < ball.x + dx < screen_width and 0 < ball.y + dy < screen_height and not track.check_collision(ball_rect) :
+                ball.x += dx
+                ball.y += dy
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="UP")
-                    balls[selected_index].color = (255, 0, 0)
+                    direction = "UP"
                 if event.key == pygame.K_DOWN:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="DOWN")
-                    balls[selected_index].color = (255, 0, 0)
+                    direction = "DOWN"
                 if event.key == pygame.K_LEFT:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="LEFT")
-                    balls[selected_index].color = (255, 0, 0)
+                    direction = "LEFT"
                 if event.key == pygame.K_RIGHT:
-                    balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="RIGHT")
-                    balls[selected_index].color = (255, 0, 0)
+                    direction = "RIGHT"
+                if event.key == pygame.K_SPACE:
+                    balls[selected_index].color = BLUE if balls[selected_index].color == RED else RED
+                    selected_index = find_closest_ball(balls, selected_index, direction)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
-            balls[selected_index].y -= speed
+            move_balls(balls, "UP")
         if keys[pygame.K_s]:
-            balls[selected_index].y += speed
+            move_balls(balls, "DOWN")
         if keys[pygame.K_a]:
-            balls[selected_index].x -= speed
+            move_balls(balls, "LEFT")
         if keys[pygame.K_d]:
-            balls[selected_index].x += speed
+            move_balls(balls, "RIGHT")
 
         # 边界检查
-        if balls[selected_index].x - balls[selected_index].radius < 0:
-            balls[selected_index].x = balls[selected_index].radius
-        if balls[selected_index].x + balls[selected_index].radius > screen_width:
-            balls[selected_index].x = screen_width - balls[selected_index].radius
-        if balls[selected_index].y - balls[selected_index].radius < 0:
-            balls[selected_index].y = balls[selected_index].radius
-        if balls[selected_index].y + balls[selected_index].radius > screen_height:
-            balls[selected_index].y = screen_height - balls[selected_index].radius
+        for ball in balls:
+            if ball.x - ball.radius < 0:
+                ball.x = ball.radius
+            if ball.x + ball.radius > screen_width:
+                ball.x = screen_width - ball.radius
+            if ball.y - ball.radius < 0:
+                ball.y = ball.radius
+            if ball.y + ball.radius > screen_height:
+                ball.y = screen_height - ball.radius
 
         # 碰撞检查
-        if track.check_collision(pygame.Rect(balls[selected_index].x - balls[selected_index].radius, balls[selected_index].y - balls[selected_index].radius, balls[selected_index].radius * 2, balls[selected_index].radius * 2)):
-            if keys[pygame.K_w]:
-                balls[selected_index].y += speed
-            if keys[pygame.K_s]:
-                balls[selected_index].y -= speed
-            if keys[pygame.K_a]:
-                balls[selected_index].x += speed
-            if keys[pygame.K_d]:
-                balls[selected_index].x -= speed
+        for ball in balls:
+            ball_rect = pygame.Rect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2)
+            if track.check_collision(ball_rect):
+                if keys[pygame.K_w]:
+                    ball.y += speed
+                if keys[pygame.K_s]:
+                    ball.y -= speed
+                if keys[pygame.K_a]:
+                    ball.x += speed
+                if keys[pygame.K_d]:
+                    ball.x -= speed
 
         # 吃黄球
         for ball in track.yellow_balls:
-            if pygame.Rect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2).colliderect(pygame.Rect(balls[selected_index].x - balls[selected_index].radius, balls[selected_index].y - balls[selected_index].radius, balls[selected_index].radius * 2, balls[selected_index].radius * 2)):
+            if pygame.Rect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2).colliderect(
+                    pygame.Rect(balls[selected_index].x - balls[selected_index].radius, balls[selected_index].y - balls[selected_index].radius, balls[selected_index].radius * 2, balls[selected_index].radius * 2)):
                 score += 10
                 track.yellow_balls.remove(ball)
                 while True:
@@ -115,7 +164,7 @@ def game_screen():
                     y = random.randint(0, screen_height - 20)
                     ball_rect = pygame.Rect(x - 10, y - 10, 20, 20)
                     if not track.check_collision(ball_rect):
-                        track.yellow_balls.append(Ball((255, 255, 0), x, y))
+                        track.yellow_balls.append(Ball(YELLOW, x, y))
                         break
 
         # 计算剩余时间
@@ -128,6 +177,9 @@ def game_screen():
         for ball in balls:
             ball.draw(screen)
         track.draw(screen)
+
+        if direction:
+            draw_direction_arrows(screen, direction)
 
         # 绘制分数和进度条
         score_text = small_font.render(f"Score: {score}", True, BLACK)
