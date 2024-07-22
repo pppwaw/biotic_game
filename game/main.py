@@ -10,7 +10,7 @@ from game.track import Track
 # 初始化Pygame
 pygame.init()
 
-video_path = r"../video/chlamy.avi"
+video_path = r"../video/chlamy_PDMS.avi"
 # 屏幕设置
 screen_width = 800
 screen_height = 600
@@ -72,17 +72,20 @@ def game_screen():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
-                    cv.select_left()
+                    cv.select_left(boxes, image)
                 if event.key == pygame.K_RIGHT:
-                    cv.select_right()
+                    cv.select_right(boxes, image)
                 if event.key == pygame.K_UP:
-                    cv.select_up()
+                    cv.select_up(boxes, image)
                 if event.key == pygame.K_DOWN:
-                    cv.select_down()
+                    cv.select_down(boxes, image)
+                if event.key == pygame.K_r:
+                    cv.boxes = [cv.boxes[0]]
+                    cv.trackers = [cv.trackers[0]]
 
         if boxes:
             # 吃黄球
-            selected_box = cv.boxes[cv.selected_index]
+            selected_box = cv.box
             for ball in track.yellow_balls:
                 if selected_box.colliderect(ball.rect()):
                     score += 10
@@ -95,17 +98,17 @@ def game_screen():
 
         # 计算剩余时间
         seconds = (pygame.time.get_ticks() - start_ticks) / 1000
-        if seconds > game_time:
-            running = False
+        # if seconds > game_time:
+        #     running = False
 
         # 绘制界面
         # 用image 绘制
         # turn ndarray to surface
         image = pygame.image.frombuffer(image.tobytes(), image.shape[1::-1], "BGR")
         screen.blit(image, (0, 0))
+        track.draw(screen)
         for box in boxes:
             box.draw(screen)
-        track.draw(screen)
 
         # 绘制分数和进度条
         score_text = small_font.render(f"Score: {score}", True, BLACK)
@@ -116,7 +119,7 @@ def game_screen():
         pygame.draw.rect(screen, BLACK, (screen_width - 220, 10, int(progress_bar_length * (seconds / game_time)), 20))
 
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(30)
 
     game_over_screen()
 
