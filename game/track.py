@@ -5,7 +5,7 @@ from ball import Ball
 class Track:
     def __init__(self, screen_width, screen_height):
         self.yellow_balls = []
-        for _ in range(100):
+        for _ in range(10):
             # while True:
                 x = random.randint(0, screen_width - 20)
                 y = random.randint(0, screen_height - 20)

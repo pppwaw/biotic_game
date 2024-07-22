@@ -10,7 +10,7 @@ from game.track import Track
 # 初始化Pygame
 pygame.init()
 
-video_path = r"../video/chlamy_PDMS.avi"
+video_path = r"../video/Lane.mp4"
 # 屏幕设置
 screen_width = 800
 screen_height = 600
