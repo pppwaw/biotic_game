@@ -29,6 +29,7 @@ small_font = pygame.font.Font(None, 36)
 # 游戏变量
 score = 0
 game_time = 60
+joy_stick=False
 
 # 速度设置
 speed = 5
@@ -63,8 +64,11 @@ def draw_key_indicator(surface, keys):
 
 # 串口设置
 def init_serial():
+    global joy_stick
     try:
         ser = serial.Serial('COM8', 9600, timeout=1)
+        if ser.is_open:
+            joy_stick=True
         return ser
     except serial.SerialException as e:
         print(f"Error: could not open port 'COM8'. {e}")
@@ -106,7 +110,7 @@ def move_balls(balls, direction,track):
 
 
 def game_screen():
-    global score, game_time
+    global score, game_time,joy_stick
 
     # 创建蓝球和红球
     track = Track(screen_width, screen_height)
@@ -248,7 +252,10 @@ def game_screen():
             draw_key_indicator(screen, pre)
         pygame.display.flip()
         clock.tick(60)
-    ser.close()
+
+    if joy_stick:
+        ser.close()
+        joy_stick=False
     game_over_screen()
 
 
