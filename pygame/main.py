@@ -76,7 +76,11 @@ def listen_serial(ser):
         if ser.in_waiting > 0:
             data = ser.readline().decode('utf-8').strip()
             # print(f"Received data: {data}")
-            return data
+            t=data.split()
+            if len(t) == 2:
+                return data
+            else:
+                return None
     return None
 
 def move(ball,track,dx,dy):
