@@ -1,4 +1,3 @@
-import threading
 import pygame
 import random
 import serial
@@ -80,8 +79,14 @@ def listen_serial(ser):
             return data
     return None
 
+def move(ball,track,dx,dy):
+    ball_rect = pygame.Rect(ball.x + dx - ball.radius, ball.y + dy - ball.radius, ball.radius * 2,ball.radius * 2)
+    if 0 < ball.x + dx < screen_width and 0 < ball.y + dy < screen_height and not track.check_collision(ball_rect):
+        ball.x += dx
+        ball.y += dy
 
-def move_balls(balls, direction):
+
+def move_balls(balls, direction,track):
     for ball in balls:
         dx, dy = 0, 0
         if direction == "UP":
@@ -93,9 +98,7 @@ def move_balls(balls, direction):
         elif direction == "RIGHT":
             dx = speed + random.randint(-1, 1)
 
-        if 0 < ball.x + dx < screen_width and 0 < ball.y + dy < screen_height:
-            ball.x += dx
-            ball.y += dy
+        move(ball,track, dx, dy)
 
 
 def game_screen():
@@ -119,7 +122,6 @@ def game_screen():
     clock = pygame.time.Clock()
     start_ticks = pygame.time.get_ticks()
 
-    direction = None  # 初始方向为空
     pre = None
     ser = init_serial()  # 初始化串口
 
@@ -128,12 +130,7 @@ def game_screen():
         for ball in balls:
             dx = random.randint(-5, 5)
             dy = random.randint(-5, 5)
-            ball_rect = pygame.Rect(ball.x + dx - ball.radius, ball.y + dy - ball.radius, ball.radius * 2,
-                                    ball.radius * 2)
-            if 0 < ball.x + dx < screen_width and 0 < ball.y + dy < screen_height and not track.check_collision(
-                    ball_rect):
-                ball.x += dx
-                ball.y += dy
+            move(ball,track,dx,dy)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -142,35 +139,35 @@ def game_screen():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="UP")
+                    selected_index = find_closest_ball(balls, selected_index, "UP")
                     balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_DOWN:
                     balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="DOWN")
+                    selected_index = find_closest_ball(balls, selected_index, "DOWN")
                     balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_LEFT:
                     balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="LEFT")
+                    selected_index = find_closest_ball(balls, selected_index, "LEFT")
                     balls[selected_index].color = (255, 0, 0)
                 if event.key == pygame.K_RIGHT:
                     balls[selected_index].color = (0, 0, 255)
-                    selected_index = find_closest_ball(balls, selected_index, direction="RIGHT")
+                    selected_index = find_closest_ball(balls, selected_index, "RIGHT")
                     balls[selected_index].color = (255, 0, 0)
 
         keys = pygame.key.get_pressed()
         data = listen_serial(ser)
         if data:
+            print(data)
             x, y = data.split()
             x, y = int(x), int(y)
-            print(x, y)
             if y > 0:
-                move_balls(balls, "UP")
+                move_balls(balls, "UP",track)
             if y < 0:
-                move_balls(balls, "DOWN")
+                move_balls(balls, "DOWN",track)
             if x < 0:
-                move_balls(balls, "LEFT")
+                move_balls(balls, "LEFT",track)
             if x > 0:
-                move_balls(balls, "RIGHT")
+                move_balls(balls, "RIGHT",track)
 
         # if keys[pygame.K_w]:
         #     move_balls(balls, "UP")
@@ -239,14 +236,12 @@ def game_screen():
         progress_bar_length = 200
         pygame.draw.rect(screen, BLACK, (screen_width - 220, 10, progress_bar_length, 20), 2)
         pygame.draw.rect(screen, BLACK, (screen_width - 220, 10, int(progress_bar_length * (seconds / game_time)), 20))
-        flag1 = flag2 = False
+
         if data:
             draw_key_indicator(screen, data)
-            flag1 = True
             pre = data
         elif pre is not None:
             draw_key_indicator(screen, pre)
-            flag2 = True
         pygame.display.flip()
         clock.tick(60)
     ser.close()
