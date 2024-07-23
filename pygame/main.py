@@ -177,14 +177,15 @@ def game_screen():
             if x > 0:
                 move_balls(balls, "RIGHT",track)
 
-        if keys[pygame.K_w]:
-            move_balls(balls, "UP", track)
-        if keys[pygame.K_s]:
-            move_balls(balls, "DOWN", track)
-        if keys[pygame.K_a]:
-            move_balls(balls, "LEFT", track)
-        if keys[pygame.K_d]:
-            move_balls(balls, "RIGHT", track)
+        if joy_stick:
+            if keys[pygame.K_w]:
+                move_balls(balls, "UP", track)
+            if keys[pygame.K_s]:
+                move_balls(balls, "DOWN", track)
+            if keys[pygame.K_a]:
+                move_balls(balls, "LEFT", track)
+            if keys[pygame.K_d]:
+                move_balls(balls, "RIGHT", track)
 
         # 边界检查
         for ball in balls:
