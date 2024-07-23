@@ -1,5 +1,7 @@
 import pygame
 import random
+
+import requests
 import serial
 import sys
 from ball import Ball
@@ -31,6 +33,7 @@ score = 0
 game_time = 60
 joy_stick=False
 com='COM7'
+url = "http://127.0.0.1:8000/score"
 # 速度设置
 speed = 5
 
@@ -262,25 +265,53 @@ def game_screen():
 
 # 创建游戏结束界面
 def game_over_screen():
+    input_text = ""
+    input_active = True
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                main()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN and input_text:
+                    # 提交分数到URL
+                    submit_score(input_text, score)
+                    # 返回主界面
+                    main()
+                elif event.key == pygame.K_BACKSPACE:
+                    input_text = input_text[:-1]
+                else:
+                    input_text += event.unicode
 
         screen.fill(WHITE)
         game_over_text = font.render("Game Over", True, BLACK)
         score_text = small_font.render(f"Score: {score}", True, BLACK)
-        restart_text = small_font.render("Press Enter to Restart", True, BLACK)
+        name_text = small_font.render("Enter your name:", True, BLACK)
+        input_text_surface = small_font.render(input_text, True, BLACK)
+        submit_text = small_font.render("Press Enter to Submit", True, BLACK)
 
-        screen.blit(game_over_text, (screen_width // 2 - 150, screen_height // 2 - 50))
-        screen.blit(score_text, (screen_width // 2 - 50, screen_height // 2 + 10))
-        screen.blit(restart_text, (screen_width // 2 - 150, screen_height // 2 + 50))
+        screen.blit(game_over_text, (screen_width // 2 - 150, screen_height // 2 - 100))
+        screen.blit(score_text, (screen_width // 2 - 50, screen_height // 2 - 50))
+        screen.blit(name_text, (screen_width // 2 - 100, screen_height // 2))
+        screen.blit(input_text_surface, (screen_width // 2 - 100, screen_height // 2 + 30))
+        screen.blit(submit_text, (screen_width // 2 - 150, screen_height // 2 + 80))
 
         pygame.display.flip()
 
+
+def submit_score(name, score):
+
+    data = {"name": name, "score": score}
+    print(data)
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            print("Score submitted successfully")
+        else:
+            print("Failed to submit score")
+    except requests.RequestException as e:
+        print(f"An error occurred: {e}")
 
 # 创建开始界面
 def main():

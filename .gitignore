@@ -2,4 +2,5 @@
 .idea/
 video/
 test.jpg
-requirements.txt
+test.*
+scores.db
