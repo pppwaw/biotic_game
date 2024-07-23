@@ -165,7 +165,7 @@ def game_screen():
         keys = pygame.key.get_pressed()
         data = listen_serial(ser)
         if data:
-            print(data)
+            # print(data)
             x, y = data.split()
             x, y = int(x), int(y)
             if y > 0:
@@ -177,7 +177,7 @@ def game_screen():
             if x > 0:
                 move_balls(balls, "RIGHT",track)
 
-        if joy_stick:
+        if not joy_stick:
             if keys[pygame.K_w]:
                 move_balls(balls, "UP", track)
             if keys[pygame.K_s]:
