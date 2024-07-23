@@ -30,7 +30,7 @@ small_font = pygame.font.Font(None, 36)
 score = 0
 game_time = 60
 joy_stick=False
-
+com='COM7'
 # 速度设置
 speed = 5
 
@@ -66,7 +66,7 @@ def draw_key_indicator(surface, keys):
 def init_serial():
     global joy_stick
     try:
-        ser = serial.Serial('COM8', 9600, timeout=1)
+        ser = serial.Serial(com, 9600, timeout=1)
         if ser.is_open:
             joy_stick=True
         return ser
